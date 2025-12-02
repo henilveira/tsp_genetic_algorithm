@@ -10,16 +10,27 @@
 #include <vector>
 #include <set>
 
+//define um tamanho fixo de individuos por populacao
 #define POPULATION_SIZE 100
+
+// qual o melhor fitness possível
 #define TARGET_FITNESS 0.0
+
+//numero maximo de geracoes para gerar offspring
 #define MAX_GENERATIONS 10
 
 std::ofstream csv("results/fitness_data.csv");
 
+// define uma string com todas as cidades disponiveis
 const std::string CITIES = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+// define um range de distancia maxima que o caxeiro vai viajar
 const int MAX_DISTANCE = 100;
 
+// inicializar o mapa para gerar um aleatório
 // std::unordered_map<char, std::tuple<int,int>> MAP;
+
+// inicializar o mapa com variáveis fixas para monitorar a evolução
 std::unordered_map<char, std::tuple<int, int>> MAP = {
     {'A', {0, 0}},
     {'B', {2, 3}},
@@ -32,6 +43,7 @@ std::unordered_map<char, std::tuple<int, int>> MAP = {
     {'I', {4, 6}},
 };
 
+// para comparar resultados
 double brute_force_tsp(const std::unordered_map<char, std::tuple<int, int>> &mapa)
 {
     std::vector<char> cities;
@@ -59,7 +71,7 @@ double brute_force_tsp(const std::unordered_map<char, std::tuple<int, int>> &map
     return min_distance;
 }
 
-
+//gerar um numero aleatório
 int random_num(int start, int end)
 {
     int range = (end-start)+1;
@@ -67,13 +79,14 @@ int random_num(int start, int end)
     return random_int;
 }
 
+//gera um gene aleatório que é um char e busca o indice na lista de cidades disponíveis (alfabeto)
 char generate_gene(const int &index)
 {
     int r = random_num(0, index-1);
     return CITIES[r];
 }
 
-
+// não está sendo utilizado porque não estou gerando mapa
 void generate_map()
 {
     int MAX_CITIES = CITIES.size();
@@ -86,6 +99,7 @@ void generate_map()
     }
 }
 
+// gera um chromossomo que é uma string com o tamanho da quantidade de cidades que o caxeiro vai viajar
 std::string generate_chromossome()
 {
     int len = MAP.size();
@@ -93,6 +107,7 @@ std::string generate_chromossome()
     char gene;
     std::set<char> used;
 
+    // nao pode repetir cidade
     while (chromossome.length() < len)
     {
         gene = generate_gene(len);
@@ -104,7 +119,7 @@ std::string generate_chromossome()
     }
     return chromossome;
 }
-
+// printa o mapa pra poder verificar se ta td certo quando eu quiser gerar o mapa
 void print_map(const std::unordered_map<char, std::tuple<int, int>>& mapa) {
     std::cout << "Conteúdo do Mapa:" << std::endl;
     
@@ -116,34 +131,44 @@ void print_map(const std::unordered_map<char, std::tuple<int, int>>& mapa) {
                   << " -> Valor: (" << x << ", " << y << ")" << std::endl;
     }
 }
-
+// calcula distancia de dois pontos num plano euclidiano
 int dist(int x1, int x2, int y1, int y2)
 {
     return std::sqrt(std::pow((x2-x1),2)+std::pow((y2-y1),2));
 }
 
-
+// define uma estrutura para o individuo
 struct Route {
+
+    // atributos, contem um chromossomo, uma distancia total e um fitness que é o quao bom é essa rota
     std::string chromosome;
     double total_dist;
     double fitness;
     
+    // O individuo vai receber um chromossomo quando inicializa um individuo novo (rota)
     Route(std::string chromosome);
+
+    // faz um corss_over com outro parent e gera offspring
     Route cross_over(const Route& parent2) const;
+
+    // calcula a distancia total da rota pra comparar
     double cal_total_dist() const;
+
+    // calcula o quao bom a rota é, fitness
     double cal_fitness() const;
 };
 
 
 Route::Route(std::string chromosome)
 {
-
+    // inicializa o individuo sempre recebendo o resultado do fitness e a total distance nos atributos
     this->chromosome = chromosome;
-    // compute total distance first, then fitness (fitness depends on total_dist)
     total_dist = cal_total_dist();
     fitness = cal_fitness();
 }
 
+
+// itera sobre todas as cidades e tuplas e calcula a distancia total
 double Route::cal_total_dist() const
 {
     double total_dist = 0.0;
@@ -163,6 +188,7 @@ double Route::cal_total_dist() const
     return total_dist;
 }
 
+//calcula o fitness que é 1/total_dist
 double Route::cal_fitness() const
 {
     double fitness = 0.0;
@@ -171,12 +197,14 @@ double Route::cal_fitness() const
     return fitness;
 }
 
+
+// utiliza PMX para fazer cross over, porque nao repete as cidades e 
+// garante que os offsprings receberao todas as cidades
 Route Route::cross_over(const Route &par2) const
 {
     int len = MAP.size();
     std::string child_chromossome(len, ' ');
 
-    // --- CROSSOVER OX ---
     int start = random_num(0, len - 2);
     int end = random_num(start + 1, len - 1);
 
@@ -194,18 +222,10 @@ Route Route::cross_over(const Route &par2) const
         }
     }
 
-    // --- MUTAÇÃO ---
-    double mutation_rate = 0.05; // 5% de chance
-    if (((double)rand() / RAND_MAX) < mutation_rate)
-    {
-        int i = random_num(0, len - 1);
-        int j = random_num(0, len - 1);
-        std::swap(child_chromossome[i], child_chromossome[j]);
-    }
-
     return Route(child_chromossome);
 }
 
+// indiferente
 struct FitnessData {
     int generation;
     double fitness;
@@ -232,7 +252,7 @@ void save_to_csv(const std::string &filename, const std::vector<FitnessData> &da
     file.close();
 }
 
-
+// reescreve o operator de < para poder aplicar um sort nos individuos e colocar os melhores no comeco do vetor
 bool operator<(const Route &route1, const Route &route2)
 {
     return route1.fitness > route2.fitness;
@@ -240,14 +260,19 @@ bool operator<(const Route &route1, const Route &route2)
 
 int main()
 {
+    // biblioteca de random, inicializando a seed
     srand((unsigned)(time(0)));
+
+    // calculando a melhor rota por brute force O(n!)
     double best_brute = brute_force_tsp(MAP);
 
     // generate_map();
     print_map(MAP);
 
+    // inicializa a contagem de geracoes
     int generation = 0;
 
+    // vetor de populacao de individuos
     std::vector<Route> routes;
 
     std::string filename = "/Users/henilveira/Documents/UDESC/AGT/PROJETO_FINAL/results/fitness_data.csv";
@@ -255,6 +280,7 @@ int main()
 
     save_to_csv(filename, {}, true);
 
+    // itera sobre o vetor de populacao e insere chromossomos aleatorios
     for (int i = 0; i < POPULATION_SIZE; i++)
     {
         std::string chromossome = generate_chromossome();
@@ -262,24 +288,34 @@ int main()
     }
 
 
+    // condicao de parada para parar os cruzamentos
     while (generation < MAX_GENERATIONS)
     {
+
+        // da um sort para os melhores virem primeiro
         std::sort(routes.begin(), routes.end());
 
+        // isso é para o artigo
         const Route &best = routes.front();
-
         save_to_csv(filename, {{generation, best.fitness, best.total_dist}});
 
+        // cria uma nova geracao de novos individuos
         std::vector<Route> new_generation;
 
+        // aplica o que chamamos de elitismo, pegamos os 10% dos que tiveram o melhor fitness da ultima geracao
         int s = 0.1 * POPULATION_SIZE;
+        // adiciono esses 10% na nova geracao
         for (int i = 0; i < s; i++)
         {
             new_generation.push_back(routes[i]);
         }
 
+        // pego o conjunto complementar para completar o tamanho da populacao
         s = 0.9 * POPULATION_SIZE;
+        // pego os 50% dos que tiveram melhor fitness da ultima geracao
         int half_fitness = 0.5 * POPULATION_SIZE;
+
+        // itero e agora cruzo os 50% melhores até fechar o tamanho da populacao
         for (int i = 0; i < s; i++)
         {
             int random = random_num(0, half_fitness);
@@ -289,16 +325,20 @@ int main()
 
             Route children = parent1.cross_over(parent2);
 
+            // sempre adicionando as offsprings
             new_generation.push_back(children);
         }
 
+        // agora a nossa nova geracao, virou a geracao atual e o while se repete até a condicao de parada
         routes = new_generation;
 
+        //prints para poder monitorar os atributos
         std::cout << "Generation: " << generation << "\t";
         std::cout << "Chromossome: " << routes[0].chromosome << "\t";
         std::cout << "Fitness: " << routes[0].fitness << "\n";
         std::cout << "Total distance: " << routes[0].total_dist << "\n";
 
+        // incremento as geracoes a cada iteracao do while para contribuir na condicao de parada
         generation++;
     }
 
